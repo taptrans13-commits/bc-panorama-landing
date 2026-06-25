@@ -154,18 +154,102 @@ const faq = [
   },
 ];
 
+const SITE_BASE_PATH = "/bc-panorama-landing";
+const SITE_PUBLIC_URL = "https://taptrans13-commits.github.io/bc-panorama-landing";
+
+const variantMeta = {
+  local: {
+    slug: "variant-2",
+    title: "БЦ Панорама - бухгалтерская компания в Перми",
+    description:
+      "Локальный вариант лендинга БЦ Панорама: бухгалтерское сопровождение, отчетность, налоги, зарплата и кадры для ИП и ООО в Перми.",
+  },
+  digital: {
+    slug: "variant-3",
+    title: "БЦ Панорама - учет, отчеты и налоги под контролем",
+    description:
+      "Деловой вариант лендинга БЦ Панорама: учет, первичка, сроки отчетности, консультации и бухгалтерское сопровождение бизнеса в Перми.",
+  },
+};
+
+function getVariantFromLocation() {
+  const pathname = window.location.pathname.replace(/\/+$/, "");
+
+  if (pathname.endsWith(`/${variantMeta.digital.slug}`)) {
+    return "digital";
+  }
+
+  if (pathname.endsWith(`/${variantMeta.local.slug}`)) {
+    return "local";
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get("variant") === "3" ? "digital" : "local";
+}
+
+function getAppBasePath() {
+  return window.location.pathname.includes(`${SITE_BASE_PATH}/`) ? SITE_BASE_PATH : "";
+}
+
+function getVariantPath(variant) {
+  return `${getAppBasePath()}/${variantMeta[variant].slug}/`;
+}
+
+function setMetaContent(selector, content) {
+  const element = document.head.querySelector(selector);
+
+  if (element) {
+    element.setAttribute("content", content);
+  }
+}
+
+function setLinkHref(selector, href) {
+  let element = document.head.querySelector(selector);
+
+  if (!element) {
+    element = document.createElement("link");
+    element.setAttribute("rel", "canonical");
+    document.head.appendChild(element);
+  }
+
+  element.setAttribute("href", href);
+}
+
+function updateDocumentMeta(variant) {
+  const meta = variantMeta[variant];
+  const url = `${SITE_PUBLIC_URL}/${meta.slug}/`;
+
+  document.title = meta.title;
+  setMetaContent('meta[name="description"]', meta.description);
+  setMetaContent('meta[property="og:title"]', meta.title);
+  setMetaContent('meta[property="og:description"]', meta.description);
+  setMetaContent('meta[property="og:url"]', url);
+  setMetaContent('meta[name="twitter:title"]', meta.title);
+  setMetaContent('meta[name="twitter:description"]', meta.description);
+  setLinkHref('link[rel="canonical"]', url);
+}
+
 function useVariantFromUrl() {
-  const [variant, setVariant] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get("variant") === "3" ? "digital" : "local";
-  });
+  const [variant, setVariant] = useState(getVariantFromLocation);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    params.set("variant", variant === "digital" ? "3" : "2");
-    const nextUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
-    window.history.replaceState(null, "", nextUrl);
+    const nextUrl = `${getVariantPath(variant)}${window.location.hash}`;
+
+    updateDocumentMeta(variant);
+
+    if (window.location.pathname !== getVariantPath(variant) || window.location.search) {
+      window.history.replaceState(null, "", nextUrl);
+    }
   }, [variant]);
+
+  useEffect(() => {
+    function handlePopState() {
+      setVariant(getVariantFromLocation());
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   return [variant, setVariant];
 }
